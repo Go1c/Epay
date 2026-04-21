@@ -408,7 +408,7 @@ class wxpay_plugin
 
 	//主动查单
 	static public function query(){
-		global $order;
+		global $order, $channel;
 
 		if(empty($order) || $order['status'] > 0){
 			return ['type'=>'json','data'=>['code'=>0, 'msg'=>'ignore']];
