@@ -85,7 +85,11 @@ if(!defined('IN_PLUGIN'))exit();
             success: function (data) {
                 if (data.code == 1) {
 					layer.msg('支付成功，正在跳转中...', {icon: 16,shade: 0.01,time: 15000});
-                    window.location.href=<?php echo $redirect_url?>;
+                    var targetUrl = data.backurl;
+                    if(!targetUrl){
+                        targetUrl = <?php echo $redirect_url?>;
+                    }
+                    window.location.href = targetUrl;
                 }else{
                     setTimeout("loadmsg()", 2000);
                 }
