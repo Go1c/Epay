@@ -24,10 +24,10 @@ default:
 
 	$row=$DB->getRow("SELECT A.*,B.plugin FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE A.trade_no='{$trade_no}' limit 1");
 	if($row && $row['status'] < 1 && !empty($row['plugin']) && strpos($row['plugin'], 'wxpay') === 0){
-		// Webhook missed or delayed: poll WeChat once every 5 seconds as a fallback.
+		// Webhook missed or delayed: poll WeChat frequently enough to keep the QR page responsive.
 		$cachekey = 'wxquery_'.$trade_no;
 		if(!$CACHE->read($cachekey)){
-			$CACHE->save($cachekey, 1, 5);
+			$CACHE->save($cachekey, 1, 2);
 			try{
 				\lib\Plugin::loadForPay('query/'.$trade_no.'/');
 			}catch(Exception $e){

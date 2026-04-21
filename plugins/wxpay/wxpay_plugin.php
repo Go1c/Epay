@@ -116,6 +116,9 @@ class wxpay_plugin
 	//扫码支付
 	static public function qrcode(){
 		global $siteurl, $channel, $order, $ordername, $conf, $clientip;
+		if($order['status'] > 0){
+			return ['type'=>'jump','url'=>$siteurl.'pay/return/'.TRADE_NO.'/'];
+		}
 
 		if(in_array('1',$channel['apptype'])){
 
@@ -133,6 +136,10 @@ class wxpay_plugin
 			$result = $client->nativePay($params);
 			$code_url = $result['code_url'];
 		}catch(Exception $e){
+			if((method_exists($e, 'getErrCode') && $e->getErrCode() === 'ORDERPAID') || strpos($e->getMessage(), 'ORDERPAID') !== false){
+				self::query();
+				return ['type'=>'jump','url'=>$siteurl.'pay/return/'.TRADE_NO.'/'];
+			}
 			return ['type'=>'error','msg'=>'微信支付下单失败！'.$e->getMessage()];
 		}
 
