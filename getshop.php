@@ -22,7 +22,19 @@ break;
 default:
 	$trade_no=isset($_GET['trade_no'])?daddslashes($_GET['trade_no']):exit('{"code":-2,"msg":"No trade_no!"}');
 
-	$row=$DB->getRow("SELECT * FROM pre_order WHERE trade_no='{$trade_no}' limit 1");
+	$row=$DB->getRow("SELECT A.*,B.plugin FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE A.trade_no='{$trade_no}' limit 1");
+	if($row && $row['status'] < 1 && !empty($row['plugin']) && strpos($row['plugin'], 'wxpay') === 0){
+		// Webhook missed or delayed: poll WeChat once every 5 seconds as a fallback.
+		$cachekey = 'wxquery_'.$trade_no;
+		if(!$CACHE->read($cachekey)){
+			$CACHE->save($cachekey, 1, 5);
+			try{
+				\lib\Plugin::loadForPay('query/'.$trade_no.'/');
+			}catch(Exception $e){
+			}
+			$row=$DB->getRow("SELECT A.*,B.plugin FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE A.trade_no='{$trade_no}' limit 1");
+		}
+	}
 	if($row['status']>=1){
 		// 支付完成5分钟后禁止跳转回网站
 		if(!empty($row['endtime']) && time() - strtotime($row['endtime']) > 300){
