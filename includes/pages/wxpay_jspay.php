@@ -78,9 +78,10 @@ if(!defined('IN_PLUGIN'))exit();
     function loadmsg() {
         $.ajax({
             type: "GET",
+            cache: false,
             dataType: "json",
             url: "/getshop.php",
-            data: {type: "wxpay", trade_no: "<?php echo TRADE_NO?>"},
+            data: {type: "wxpay", trade_no: "<?php echo TRADE_NO?>", t: Date.now()},
             success: function (data) {
                 if (data.code == 1) {
 					layer.msg('支付成功，正在跳转中...', {icon: 16,shade: 0.01,time: 15000});
