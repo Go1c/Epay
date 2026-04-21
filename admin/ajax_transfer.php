@@ -19,6 +19,10 @@ function buildAdminTransferWhere(&$params){
 		$where[] = "`type`=:type";
 		$params[':type'] = trim($_POST['type']);
 	}
+	if(isset($_POST['channel']) && $_POST['channel'] !== '') {
+		$where[] = "`channel`=:channel";
+		$params[':channel'] = intval($_POST['channel']);
+	}
 	if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
 		$where[] = "`status`=:status";
 		$params[':status'] = intval($_POST['dstatus']);
@@ -187,7 +191,7 @@ case 'batch_submit':
 
 	$channelid = isset($_POST['channel'])?$_POST['channel']:null;
 
-	$result = \lib\Transfer::add(0, $type, $out_biz_no, $payee_account, $payee_real_name, $money, $desc, null, $channelid);
+	$result = \lib\Transfer::add(0, $type, $out_biz_no, $payee_account, $payee_real_name, $money, null, $desc, null, $channelid);
 
 	if($result['code']==0){
 		if($result['status'] == 1){

@@ -1,6 +1,6 @@
 <?php
 error_reporting(0);
-define('DB_VERSION', '2053');
+define('DB_VERSION', '2054');
 $allowInstaller = getenv('ALLOW_INSTALLER');
 
 if($allowInstaller !== '1'){
