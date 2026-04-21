@@ -5,10 +5,9 @@ $act=isset($_GET['act'])?daddslashes($_GET['act']):null;
 
 @header('Content-Type: application/json; charset=UTF-8');
 
-if(!checkRefererHost())exit('{"code":403}');
-
 switch($act){
 case 'captcha_verify':
+	if(!checkRefererHost())exit('{"code":403}');
 	$pid=$_POST['pid'];
 	$trade_no=$_POST['trade_no'];
 	if(!$pid || !$trade_no)exit(json_encode(['code'=>-1, 'msg'=>'参数不完整']));
