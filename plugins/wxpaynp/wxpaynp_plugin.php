@@ -482,6 +482,59 @@ class wxpaynp_plugin
 		return ['type'=>'page','page'=>'ok'];
 	}
 
+	//主动查单
+	static public function query(){
+		global $order, $conf;
+
+		if(empty($order) || $order['status'] > 0){
+			return ['type'=>'json','data'=>['code'=>0, 'msg'=>'ignore']];
+		}
+
+		$wechatpay_config = require(PAY_ROOT.'inc/config.php');
+		try{
+			$client = new \WeChatPay\V3\PartnerPaymentService($wechatpay_config);
+			if($order['combine'] == 1){
+				$result = $client->combineQueryOrder(TRADE_NO);
+				$combine_state = $result['combine_state'] ?? null;
+				if(in_array($combine_state, ['SUCCESS', 'COMPLETE'])){
+					$sub_orders = [];
+					if(!empty($result['sub_orders']) && is_array($result['sub_orders'])){
+						foreach($result['sub_orders'] as $detail){
+							if(empty($detail['out_trade_no']) || empty($detail['transaction_id']) || empty($detail['amount']['total_amount'])) continue;
+							$sub_orders[] = [
+								'sub_trade_no'=>$detail['out_trade_no'],
+								'api_trade_no'=>$detail['transaction_id'],
+								'money'=>round($detail['amount']['total_amount']/100,2)
+							];
+						}
+					}
+					if(!empty($sub_orders)){
+						\lib\Payment::processSubOrders(TRADE_NO, $sub_orders);
+					}
+					if($conf['direct_settle_time'] > 0 && $order['profits'] == 0){
+						$order['settle'] = 1;
+					}
+					$buyer = $result['combine_payer_info']['openid'] ?? null;
+					processNotify($order, TRADE_NO, $buyer);
+					return ['type'=>'json','data'=>['code'=>1, 'msg'=>'success']];
+				}
+			}else{
+				$result = $client->orderQuery(null, TRADE_NO);
+				if(($result['trade_state'] ?? null) == 'SUCCESS' && ($result['out_trade_no'] ?? null) == TRADE_NO && intval($result['amount']['total'] ?? 0) === intval(round($order['realmoney']*100))){
+					if($conf['direct_settle_time'] > 0 && $order['profits'] == 0){
+						$order['settle'] = 1;
+					}
+					$buyer = $result['payer']['sp_openid'] ?? $result['payer']['sub_openid'] ?? $result['payer']['openid'] ?? null;
+					processNotify($order, $result['transaction_id'] ?? TRADE_NO, $buyer);
+					return ['type'=>'json','data'=>['code'=>1, 'msg'=>'success']];
+				}
+			}
+			return ['type'=>'json','data'=>['code'=>0, 'msg'=>'pending']];
+		}catch(Exception $e){
+			return ['type'=>'json','data'=>['code'=>-1, 'msg'=>$e->getMessage()]];
+		}
+	}
+
 	//支付返回页面
 	static public function return(){
 		return ['type'=>'page','page'=>'return'];

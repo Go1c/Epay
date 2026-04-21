@@ -413,6 +413,28 @@ class wxpaysl_plugin
 		return ['type'=>'page','page'=>'ok'];
 	}
 
+	//主动查单
+	static public function query(){
+		global $order;
+
+		if(empty($order) || $order['status'] > 0){
+			return ['type'=>'json','data'=>['code'=>0, 'msg'=>'ignore']];
+		}
+
+		$wechatpay_config = require(PAY_ROOT.'inc/config.php');
+		try{
+			$client = new \WeChatPay\PaymentService($wechatpay_config);
+			$result = $client->orderQuery(null, TRADE_NO);
+			if($result['trade_state'] == 'SUCCESS' && $result['out_trade_no'] == TRADE_NO && $result['total_fee'] == strval($order['realmoney']*100)){
+				processNotify($order, $result['transaction_id'], $result['openid']);
+				return ['type'=>'json','data'=>['code'=>1, 'msg'=>'success']];
+			}
+			return ['type'=>'json','data'=>['code'=>0, 'msg'=>'pending']];
+		}catch(Exception $e){
+			return ['type'=>'json','data'=>['code'=>-1, 'msg'=>$e->getMessage()]];
+		}
+	}
+
 	//支付返回页面
 	static public function return(){
 		return ['type'=>'page','page'=>'return'];
