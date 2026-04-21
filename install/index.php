@@ -3,6 +3,11 @@
 error_reporting(0);
 date_default_timezone_set("PRC");
 $databaseFile = '../config.php';//数据库配额文件
+$allowInstaller = getenv('ALLOW_INSTALLER');
+
+if($allowInstaller !== '1'){
+    exit('安装程序默认已禁用。如需安装，请临时设置环境变量 ALLOW_INSTALLER=1 后再访问。');
+}
 
 @header('Content-Type: text/html; charset=UTF-8');
 $step=isset($_GET['step'])?$_GET['step']:1;
@@ -32,6 +37,10 @@ function random($length, $numeric = 0) {
 	return $hash;
 }
 
+$generatedAdminUser = 'admin';
+$generatedAdminPwd = null;
+$generatedAdminPayPwd = null;
+
 if($step==3){
     if($_GET['jump']==1){
         include '../config.php';
@@ -56,17 +65,16 @@ if($step==3){
             'dbname' => $database,
             'dbqz' => $dbqz
         );
-        $config="<?php
-    /*数据库配置*/
-    \$dbconfig=array(
-        'host' => '{$host}', //数据库服务器
-        'port' => {$port}, //数据库端口
-        'user' => '{$user}', //数据库用户名
-        'pwd' => '{$pwd}', //数据库密码
-        'dbname' => '{$database}', //数据库名
-        'dbqz' => '{$dbqz}' //数据表前缀
-    );
-    ";
+        $config = "<?php\n";
+        $config .= "/*数据库配置*/\n";
+        $config .= "\$dbconfig=array(\n";
+        $config .= "    'host' => ".var_export($host, true).", //数据库服务器\n";
+        $config .= "    'port' => ".intval($port).", //数据库端口\n";
+        $config .= "    'user' => ".var_export($user, true).", //数据库用户名\n";
+        $config .= "    'pwd' => ".var_export($pwd, true).", //数据库密码\n";
+        $config .= "    'dbname' => ".var_export($database, true).", //数据库名\n";
+        $config .= "    'dbqz' => ".var_export($dbqz, true)." //数据表前缀\n";
+        $config .= ");\n";
     }
     if(empty($errorMsg)){
         try{
@@ -107,11 +115,16 @@ if($step==3){
         }
         if(empty($errorMsg) && !$_GET['jump']){
             $dbqz = $dbconfig['dbqz'];
+            $generatedAdminPwd = random(16);
+            $generatedAdminPayPwd = random(12, 1);
             $DB->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
             $DB->exec("set sql_mode = ''");
             $DB->exec("set names utf8");
             $sqls=file_get_contents('install.sql');
             $sqls=explode(';', $sqls);
+            $sqls[]="UPDATE `".$dbqz."_config` SET `v` = '".$generatedAdminUser."' WHERE `k` = 'admin_user'";
+            $sqls[]="UPDATE `".$dbqz."_config` SET `v` = '".password_hash($generatedAdminPwd, PASSWORD_DEFAULT)."' WHERE `k` = 'admin_pwd'";
+            $sqls[]="UPDATE `".$dbqz."_config` SET `v` = '".password_hash($generatedAdminPayPwd, PASSWORD_DEFAULT)."' WHERE `k` = 'admin_paypwd'";
             $sqls[]="INSERT INTO `".$dbqz."_config` VALUES ('syskey', '".random(32)."')";
             $sqls[]="INSERT INTO `".$dbqz."_config` VALUES ('build', '".date("Y-m-d")."')";
             $sqls[]="INSERT INTO `".$dbqz."_config` VALUES ('cronkey', '".rand(111111,999999)."')";
@@ -248,9 +261,12 @@ if(!empty($errorMsg)){
                     <?php if($success>0){?><div class="alert alert-success" role="alert">成功执行SQL语句<?php echo $success;?>条，失败<?php echo $error;?>条！</div><?php }?>
                     <ul class="list-group">
                         <li class="list-group-item">1、系统已成功安装完毕！</li>
-                        <li class="list-group-item">2、后台地址：<a href="/admin/" target="_blank">/admin/</a> 密码:123456</li>
-                        <li class="list-group-item">3、请及时修改后台管理员密码！</li>
-                        <?php if(!$lock_status){?><li class="list-group-item">4、<font color="#FF0033">你的空间不支持本地文件读写，请自行在 /install/ 目录建立 install.lock 文件！</font></li><?php }?>
+                        <li class="list-group-item">2、后台地址：<a href="/admin/" target="_blank">/admin/</a></li>
+                        <li class="list-group-item">3、管理员账号：<?php echo htmlspecialchars($generatedAdminUser, ENT_QUOTES, 'UTF-8')?></li>
+                        <li class="list-group-item">4、管理员密码：<?php echo htmlspecialchars($generatedAdminPwd, ENT_QUOTES, 'UTF-8')?></li>
+                        <li class="list-group-item">5、支付密码：<?php echo htmlspecialchars($generatedAdminPayPwd, ENT_QUOTES, 'UTF-8')?></li>
+                        <li class="list-group-item">6、请立即登录后台并修改以上密码！</li>
+                        <?php if(!$lock_status){?><li class="list-group-item">7、<font color="#FF0033">你的空间不支持本地文件读写，请自行在 /install/ 目录建立 install.lock 文件！</font></li><?php }?>
                         <li class="list-group-item"><a href="/" class="btn btn-block btn-default">进入网站首页</a></li>
                     </ul>
                 </div>

@@ -7,6 +7,70 @@ if(!checkRefererHost())exit('{"code":403}');
 
 @header('Content-Type: application/json; charset=UTF-8');
 
+function buildAdminUserWhere(&$params){
+	$where = ['1=1'];
+	$allowedStatus = ['pay', 'status', 'settle', 'cert'];
+	$allowedColumns = ['uid', 'key', 'account', 'username', 'url', 'qq', 'phone', 'email'];
+	$allowedOrders = ['uid desc', 'money desc', 'money asc', 'lasttime desc', 'lasttime asc'];
+	$order = 'uid desc';
+
+	if(isset($_POST['dstatus']) && !empty($_POST['dstatus'])) {
+		$dstatus = explode('_', $_POST['dstatus'], 2);
+		if(count($dstatus) === 2 && in_array($dstatus[0], $allowedStatus, true)) {
+			$where[] = "`{$dstatus[0]}`=:dstatus";
+			$params[':dstatus'] = $dstatus[1];
+		}
+	}
+	if(isset($_POST['gid']) && $_POST['gid']!=='') {
+		$where[] = "`gid`=:gid";
+		$params[':gid'] = intval($_POST['gid']);
+	}
+	if(isset($_POST['upid']) && $_POST['upid']!=='') {
+		$where[] = "`upid`=:upid";
+		$params[':upid'] = intval($_POST['upid']);
+	}
+	if(isset($_POST['value']) && $_POST['value'] !== '' && isset($_POST['column']) && in_array($_POST['column'], $allowedColumns, true)) {
+		$where[] = "`{$_POST['column']}`=:column_value";
+		$params[':column_value'] = $_POST['value'];
+	}
+	if(isset($_POST['order_days']) && !empty($_POST['order_days'])) {
+		$order_days = intval($_POST['order_days']);
+		$where[] = "uid NOT IN (SELECT DISTINCT uid FROM pre_order WHERE date>=NOW()-INTERVAL {$order_days} DAY)";
+	}
+	if(isset($_POST['order']) && !empty($_POST['order'])) {
+		$sort = str_replace('_', ' ', $_POST['order']);
+		if(in_array($sort, $allowedOrders, true)) {
+			$order = $sort;
+		}
+	}
+
+	return [implode(' AND ', $where), $order];
+}
+
+function buildAdminRecordWhere(&$params){
+	$where = ['1=1'];
+	$allowedColumns = ['uid', 'action', 'type', 'trade_no', 'money'];
+
+	if(isset($_POST['uid']) && $_POST['uid']!=='') {
+		$where[] = "`uid`=:uid";
+		$params[':uid'] = intval($_POST['uid']);
+	}
+	if(!empty($_POST['starttime'])){
+		$where[] = "`date`>=:starttime";
+		$params[':starttime'] = $_POST['starttime'].' 00:00:00';
+	}
+	if(!empty($_POST['endtime'])){
+		$where[] = "`date`<=:endtime";
+		$params[':endtime'] = $_POST['endtime'].' 23:59:59';
+	}
+	if(isset($_POST['value']) && $_POST['value'] !== '' && isset($_POST['column']) && in_array($_POST['column'], $allowedColumns, true)) {
+		$where[] = "`{$_POST['column']}`=:column_value";
+		$params[':column_value'] = $_POST['value'];
+	}
+
+	return implode(' AND ', $where);
+}
+
 switch($act){
 case 'userList':
 	$usergroup = [0=>'默认用户组'];
@@ -16,38 +80,16 @@ case 'userList':
 	}
 	unset($rs);
 
-	$sql=" 1=1";
-	if(isset($_POST['dstatus']) && !empty($_POST['dstatus'])) {
-		$dstatus = explode('_',$_POST['dstatus']);
-		$sql.=" AND `{$dstatus[0]}`='{$dstatus[1]}'";
-	}
-	if(isset($_POST['gid']) && $_POST['gid']!=='') {
-		$gid = intval($_POST['gid']);
-		$sql.=" AND `gid`='$gid'";
-	}
-	if(isset($_POST['upid']) && $_POST['upid']!=='') {
-		$upid = intval($_POST['upid']);
-		$sql.=" AND `upid`='$upid'";
-	}
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
-	}
-	if(isset($_POST['order_days']) && !empty($_POST['order_days'])) {
-		$order_days = intval($_POST['order_days']);
-		$sql.=" AND uid NOT IN (SELECT DISTINCT uid FROM pre_order WHERE date>=NOW()-INTERVAL {$order_days} DAY)";
-	}
-	$order = "uid desc";
-	if(isset($_POST['order']) && !empty($_POST['order'])) {
-		$order=str_replace('_', ' ', $_POST['order']);
-	}
+	$params = [];
+	list($sql, $order) = buildAdminUserWhere($params);
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_user WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_user WHERE{$sql} order by {$order} limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_user WHERE {$sql}", $params);
+	$list = $DB->getAll("SELECT * FROM pre_user WHERE {$sql} order by {$order} limit {$offset},{$limit}", $params);
 	$list2 = [];
 	foreach($list as $row){
 		if($row['endtime']!=null && strtotime($row['endtime'])<time()){
-			$DB->exec("UPDATE pre_user SET gid=0,endtime=NULL WHERE uid='{$row['uid']}'");
+			$DB->exec("UPDATE pre_user SET gid=0,endtime=NULL WHERE uid=:uid", [':uid'=>$row['uid']]);
 			$row['gid']=0;
 		}elseif($row['endtime']!=null){
 			$row['endtime'] = date("Y-m-d", strtotime($row['endtime']));
@@ -60,55 +102,23 @@ case 'userList':
 break;
 
 case 'recordList':
-	$sql=" 1=1";
-	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
-		$uid = intval($_POST['uid']);
-		$sql.=" AND `uid`='$uid'";
-	}
-	if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
-		if(!empty($_POST['starttime'])){
-			$starttime = daddslashes($_POST['starttime']);
-			$sql.=" AND `date`>='{$starttime} 00:00:00'";
-		}
-		if(!empty($_POST['endtime'])){
-			$endtime = daddslashes($_POST['endtime']);
-			$sql.=" AND `date`<='{$endtime} 23:59:59'";
-		}
-	}
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
-	}
+	$params = [];
+	$sql = buildAdminRecordWhere($params);
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_record WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_record WHERE{$sql} order by id desc limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_record WHERE {$sql}", $params);
+	$list = $DB->getAll("SELECT * FROM pre_record WHERE {$sql} order by id desc limit {$offset},{$limit}", $params);
 
 	exit(json_encode(['total'=>$total, 'rows'=>$list]));
 break;
 
 case 'record_stats':
-	$sql=" 1=1";
-	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
-		$uid = intval($_POST['uid']);
-		$sql.=" AND `uid`='$uid'";
-	}
-	if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
-		if(!empty($_POST['starttime'])){
-			$starttime = daddslashes($_POST['starttime']);
-			$sql.=" AND `date`>='{$starttime} 00:00:00'";
-		}
-		if(!empty($_POST['endtime'])){
-			$endtime = daddslashes($_POST['endtime']);
-			$sql.=" AND `date`<='{$endtime} 23:59:59'";
-		}
-	}
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
-	}
+	$params = [];
+	$sql = buildAdminRecordWhere($params);
 	$result = $DB->getRow("SELECT 
         SUM(CASE WHEN action = 1 THEN money ELSE 0 END) AS incMoney,
         SUM(CASE WHEN action = 2 THEN money ELSE 0 END) AS decMoney
-        FROM pre_record WHERE {$sql}");
+        FROM pre_record WHERE {$sql}", $params);
 	$data = [
         'incMoney' => number_format($result['incMoney'] ?? 0, 2, '.', ''),
         'decMoney' => number_format($result['decMoney'] ?? 0, 2, '.', ''),
@@ -287,58 +297,65 @@ break;
 
 case 'logList':
 	$sql=" 1=1";
-	if(isset($_POST['value']) && $_POST['value']!=='') {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
+	$params = [];
+	$allowedColumns = ['uid', 'type', 'ip', 'city'];
+	if(isset($_POST['value']) && $_POST['value']!=='' && isset($_POST['column']) && in_array($_POST['column'], $allowedColumns, true)) {
+		$sql.=" AND `{$_POST['column']}`=:log_value";
+		$params[':log_value'] = $_POST['value'];
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_log WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_log WHERE{$sql} order by id desc limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_log WHERE {$sql}", $params);
+	$list = $DB->getAll("SELECT * FROM pre_log WHERE {$sql} order by id desc limit {$offset},{$limit}", $params);
 
 	exit(json_encode(['total'=>$total, 'rows'=>$list]));
 break;
 
 case 'domainList':
 	$sql=" 1=1";
+	$params = [];
 	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
-		$uid = intval($_POST['uid']);
-		$sql.=" AND `uid`='$uid'";
+		$sql.=" AND `uid`=:uid";
+		$params[':uid'] = intval($_POST['uid']);
 	}
 	if(isset($_POST['kw']) && !empty($_POST['kw'])) {
-		$sql.=" AND `domain`='{$_POST['kw']}'";
+		$sql.=" AND `domain`=:domain";
+		$params[':domain'] = $_POST['kw'];
 	}
 	if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
-		$dstatus = intval($_POST['dstatus']);
-		$sql.=" AND `status`={$dstatus}";
+		$sql.=" AND `status`=:domain_status";
+		$params[':domain_status'] = intval($_POST['dstatus']);
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_domain WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_domain WHERE{$sql} order by id desc limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_domain WHERE {$sql}", $params);
+	$list = $DB->getAll("SELECT * FROM pre_domain WHERE {$sql} order by id desc limit {$offset},{$limit}", $params);
 
 	exit(json_encode(['total'=>$total, 'rows'=>$list]));
 break;
 
 case 'blackList':
 	$sql=" 1=1";
+	$params = [];
 	if(isset($_POST['kw']) && !empty($_POST['kw'])) {
-		$sql.=" AND `content`='{$_POST['kw']}'";
+		$sql.=" AND `content`=:content";
+		$params[':content'] = $_POST['kw'];
 	}
 	if(isset($_POST['type']) && $_POST['type']>-1) {
-		$type = intval($_POST['type']);
-		$sql.=" AND `type`={$type}";
+		$sql.=" AND `type`=:black_type";
+		$params[':black_type'] = intval($_POST['type']);
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_blacklist WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_blacklist WHERE{$sql} order by id desc limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_blacklist WHERE {$sql}", $params);
+	$list = $DB->getAll("SELECT * FROM pre_blacklist WHERE {$sql} order by id desc limit {$offset},{$limit}", $params);
 
 	exit(json_encode(['total'=>$total, 'rows'=>$list]));
 break;
 
 case 'getGroup': //用户组
 	$gid=intval($_GET['gid']);
-	$row=$DB->getRow("select * from pre_group where gid='$gid' limit 1");
+	$row=$DB->getRow("select * from pre_group where gid=:gid limit 1", [':gid'=>$gid]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前用户组不存在！"}');
 	$result = ['code'=>0,'msg'=>'succ','gid'=>$gid,'name'=>$row['name'],'info'=>json_decode($row['info'],true),'config'=>$row['config']?json_decode($row['config'],true):[],'settings'=>$row['settings']];
@@ -346,12 +363,12 @@ case 'getGroup': //用户组
 break;
 case 'delGroup':
 	$gid=intval($_GET['gid']);
-	$row=$DB->getRow("select * from pre_group where gid='$gid' limit 1");
+	$row=$DB->getRow("select * from pre_group where gid=:gid limit 1", [':gid'=>$gid]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前用户组不存在！"}');
-	$sql = "DELETE FROM pre_group WHERE gid='$gid'";
-	if($DB->exec($sql)){
-		$DB->exec("UPDATE pre_user SET gid=0 WHERE gid='$gid'");
+	$sql = "DELETE FROM pre_group WHERE gid=:gid";
+	if($DB->exec($sql, [':gid'=>$gid])){
+		$DB->exec("UPDATE pre_user SET gid=0 WHERE gid=:gid", [':gid'=>$gid]);
 		exit('{"code":0,"msg":"删除用户组成功！"}');
 	}
 	else exit('{"code":-1,"msg":"删除用户组失败['.$DB->error().']"}');
@@ -359,7 +376,7 @@ break;
 case 'saveGroup':
 	if($_POST['action'] == 'add'){
 		$name=trim($_POST['name']);
-		$row=$DB->getRow("select * from pre_group where name='$name' limit 1");
+		$row=$DB->getRow("select * from pre_group where name=:name limit 1", [':name'=>$name]);
 		if($row)
 			exit('{"code":-1,"msg":"用户组名称重复"}');
 		$info=json_encode($_POST['info']);

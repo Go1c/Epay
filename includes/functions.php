@@ -478,6 +478,45 @@ function saveSetting($k, $v){
 	global $DB;
 	return $DB->exec("REPLACE INTO pre_config SET v=:v,k=:k", [':v'=>$v, ':k'=>$k]);
 }
+function isPasswordHashString($value){
+	if(!is_string($value) || $value === '') return false;
+	$info = password_get_info($value);
+	return !empty($info['algo']);
+}
+function hashConfigSecret($value){
+	return password_hash($value, PASSWORD_DEFAULT);
+}
+function verifyConfigSecret($input, $stored, $configKey = null){
+	global $conf, $CACHE;
+	if($stored === null || $stored === '') return false;
+	if(isPasswordHashString($stored)){
+		return password_verify($input, $stored);
+	}
+	if(!hash_equals((string)$stored, (string)$input)){
+		return false;
+	}
+	if($configKey){
+		$newValue = hashConfigSecret($input);
+		saveSetting($configKey, $newValue);
+		$conf[$configKey] = $newValue;
+		if(isset($CACHE)) $CACHE->clear();
+	}
+	return true;
+}
+function adminPasswordIsDefault($stored){
+	return verifyConfigSecret('123456', $stored);
+}
+function adminPasswordIsWeak($username, $stored, $kfqq = ''){
+	if(isPasswordHashString($stored)) return false;
+	$length = strlen((string)$stored);
+	return $length < 6 || (is_numeric($stored) && $length <= 10) || (!empty($kfqq) && $stored === $kfqq) || $username === $stored;
+}
+function adminPayPasswordSessionValue($stored){
+	return hash('sha256', (string)$stored.'|admin_paypwd');
+}
+function h($value){
+	return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
 function checkGroupSettings($str){
 	foreach(explode(',',$str) as $row){
 		if(!strpos($row,':'))return false;

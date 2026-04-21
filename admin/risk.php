@@ -49,14 +49,14 @@ $(document).ready(function(){
 				field: 'id',
 				title: 'ID',
 				formatter: function(value, row, index) {
-					return '<b>'+value+'</b>';
+					return '<b>'+escapeHtml(value)+'</b>';
 				}
 			},
 			{
 				field: 'uid',
 				title: '商户号',
 				formatter: function(value, row, index) {
-					return '<b><a href="./ulist.php?column=uid&value='+value+'" target="_blank">'+value+'</a></b>';
+					return '<b><a href="./ulist.php?column=uid&value='+encodeURIComponent(value)+'" target="_blank">'+escapeHtml(value)+'</a></b>';
 				}
 			},
 			{
@@ -76,15 +76,24 @@ $(document).ready(function(){
 			},
 			{
 				field: 'content',
-				title: '风控内容'
+				title: '风控内容',
+				formatter: function(value) {
+					return escapeHtml(value);
+				}
 			},
 			{
 				field: 'url',
-				title: '风控网址'
+				title: '风控网址',
+				formatter: function(value) {
+					return escapeHtml(value);
+				}
 			},
 			{
 				field: 'date',
-				title: '时间'
+				title: '时间',
+				formatter: function(value) {
+					return escapeHtml(value);
+				}
 			}
 		],
 	})

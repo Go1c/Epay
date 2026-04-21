@@ -7,6 +7,82 @@ if(!checkRefererHost())exit('{"code":403}');
 
 @header('Content-Type: application/json; charset=UTF-8');
 
+function buildAdminOrderWhere(&$params){
+	$where = ['1=1'];
+	$allowedColumns = ['trade_no', 'out_trade_no', 'api_trade_no', 'bill_mch_trade_no', 'bill_trade_no', 'name', 'money', 'realmoney', 'getmoney', 'domain', 'buyer', 'ip', 'mobile', 'param'];
+
+	if(isset($_POST['uid']) && $_POST['uid'] !== '') {
+		$where[] = "A.`uid`=:uid";
+		$params[':uid'] = intval($_POST['uid']);
+	}
+	if(isset($_POST['type']) && $_POST['type'] !== '') {
+		$where[] = "A.`type`=:type";
+		$params[':type'] = intval($_POST['type']);
+	}elseif(isset($_POST['channel']) && $_POST['channel'] !== '') {
+		$where[] = "A.`channel`=:channel";
+		$params[':channel'] = intval($_POST['channel']);
+	}elseif(isset($_POST['subchannel']) && $_POST['subchannel'] !== '') {
+		$where[] = "A.`subchannel`=:subchannel";
+		$params[':subchannel'] = intval($_POST['subchannel']);
+	}elseif(isset($_POST['applyid']) && $_POST['applyid'] !== '') {
+		$where[] = "A.`subchannel` IN (SELECT id FROM pre_subchannel WHERE apply_id=:applyid)";
+		$params[':applyid'] = intval($_POST['applyid']);
+	}
+	if(isset($_POST['dstatus']) && !isNullOrEmpty($_POST['dstatus'])) {
+		if(substr($_POST['dstatus'], 0, 6) == 'settle'){
+			$where[] = "A.`settle`=:settle_status";
+			$params[':settle_status'] = intval(substr($_POST['dstatus'], 7));
+		}else{
+			$where[] = "A.`status`=:order_status";
+			$params[':order_status'] = intval($_POST['dstatus']);
+		}
+	}
+	if(!empty($_POST['starttime'])){
+		$where[] = "A.`addtime`>=:starttime";
+		$params[':starttime'] = $_POST['starttime'].' 00:00:00';
+	}
+	if(!empty($_POST['endtime'])){
+		$where[] = "A.`addtime`<=:endtime";
+		$params[':endtime'] = $_POST['endtime'].' 23:59:59';
+	}
+	if(isset($_POST['value']) && $_POST['value'] !== '' && isset($_POST['column']) && in_array($_POST['column'], $allowedColumns, true)) {
+		$column = $_POST['column'];
+		$value = trim($_POST['value']);
+		if($column === 'name'){
+			$where[] = "A.`name` LIKE :search_name";
+			$params[':search_name'] = '%'.$value.'%';
+		}elseif(in_array($column, ['money', 'realmoney', 'getmoney'], true) && strpos($value, '-') !== false){
+			$money = explode('-', $value, 2);
+			if(isset($money[0], $money[1]) && is_numeric(trim($money[0])) && is_numeric(trim($money[1]))){
+				$where[] = "A.`{$column}`>=:{$column}_min AND A.`{$column}`<=:{$column}_max";
+				$params[":{$column}_min"] = trim($money[0]);
+				$params[":{$column}_max"] = trim($money[1]);
+			}
+		}else{
+			$where[] = "A.`{$column}`=:search_value";
+			$params[':search_value'] = $value;
+		}
+	}
+
+	return implode(' AND ', $where);
+}
+
+function buildAdminRiskWhere(&$params){
+	$where = ['1=1'];
+	$allowedColumns = ['uid', 'type', 'url', 'content'];
+
+	if(isset($_POST['value']) && $_POST['value'] !== '' && isset($_POST['column']) && in_array($_POST['column'], $allowedColumns, true)) {
+		$where[] = "`{$_POST['column']}`=:risk_value";
+		$params[':risk_value'] = $_POST['value'];
+	}
+	if(isset($_POST['type']) && $_POST['type']>-1) {
+		$where[] = "`type`=:risk_type";
+		$params[':risk_type'] = intval($_POST['type']);
+	}
+
+	return implode(' AND ', $where);
+}
+
 switch($act){
 case 'orderList':
 	$paytype = [];
@@ -18,59 +94,12 @@ case 'orderList':
 	}
 	unset($rs);
 
-	$sql=" 1=1";
-	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
-		$uid = intval($_POST['uid']);
-		$sql.=" AND A.`uid`='$uid'";
-	}
-	if(isset($_POST['type']) && !empty($_POST['type'])) {
-		$type = intval($_POST['type']);
-		$sql.=" AND A.`type`='$type'";
-	}elseif(isset($_POST['channel']) && !empty($_POST['channel'])) {
-		$channel = intval($_POST['channel']);
-		$sql.=" AND A.`channel`='$channel'";
-	}elseif(isset($_POST['subchannel']) && !empty($_POST['subchannel'])) {
-		$subchannel = intval($_POST['subchannel']);
-		$sql.=" AND A.`subchannel`='$subchannel'";
-	}elseif(isset($_POST['applyid']) && !empty($_POST['applyid'])) {
-		$applyid = intval($_POST['applyid']);
-		$sql.=" AND A.`subchannel` IN (SELECT id FROM pre_subchannel WHERE apply_id='{$applyid}')";
-	}
-	if(isset($_POST['dstatus']) && !isNullOrEmpty($_POST['dstatus'])) {
-		if(substr($_POST['dstatus'], 0, 6) == 'settle'){
-			$dstatus = intval(substr($_POST['dstatus'], 7));
-			$sql.=" AND A.settle={$dstatus}";
-		}else{
-			$dstatus = intval($_POST['dstatus']);
-			$sql.=" AND A.status={$dstatus}";
-		}
-	}
-	if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
-		if(!empty($_POST['starttime'])){
-			$starttime = daddslashes($_POST['starttime']);
-			$sql.=" AND A.addtime>='{$starttime} 00:00:00'";
-		}
-		if(!empty($_POST['endtime'])){
-			$endtime = daddslashes($_POST['endtime']);
-			$sql.=" AND A.addtime<='{$endtime} 23:59:59'";
-		}
-	}
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		if($_POST['column']=='name'){
-			$sql.=" AND A.`{$_POST['column']}` like '%{$_POST['value']}%'";
-		}else{
-			if(($_POST['column'] == 'money' || $_POST['column'] == 'realmoney' || $_POST['column'] == 'getmoney') && strpos($_POST['value'],'-')){
-				$money = explode('-', $_POST['value']);
-				$sql.=" AND A.`{$_POST['column']}`>='{$money[0]}' AND A.`{$_POST['column']}`<='{$money[1]}'";
-			}else{
-				$sql.=" AND A.`{$_POST['column']}`='{$_POST['value']}'";
-			}
-		}
-	}
+	$params = [];
+	$sql = buildAdminOrderWhere($params);
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_order A WHERE{$sql}");
-	$list = $DB->getAll("SELECT A.*,B.plugin,B.name channelname FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE{$sql} order by trade_no desc limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_order A WHERE {$sql}", $params);
+	$list = $DB->getAll("SELECT A.*,B.plugin,B.name channelname FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql} order by trade_no desc limit {$offset},{$limit}", $params);
 	$list2 = [];
 	foreach($list as $row){
 		$row['typename'] = $paytypes[$row['type']];
@@ -82,64 +111,25 @@ case 'orderList':
 break;
 
 case 'statistics':
-    $sql=" 1=1";
-	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
-		$uid = intval($_POST['uid']);
-		$sql.=" AND A.`uid`='$uid'";
-	}
-	if(isset($_POST['type']) && !empty($_POST['type'])) {
-		$type = intval($_POST['type']);
-		$sql.=" AND A.`type`='$type'";
-	}elseif(isset($_POST['channel']) && !empty($_POST['channel'])) {
-		$channel = intval($_POST['channel']);
-		$sql.=" AND A.`channel`='$channel'";
-	}elseif(isset($_POST['subchannel']) && !empty($_POST['subchannel'])) {
-		$subchannel = intval($_POST['subchannel']);
-		$sql.=" AND A.`subchannel`='$subchannel'";
-	}
-	if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
-		$dstatus = intval($_POST['dstatus']);
-		$sql.=" AND A.status={$dstatus}";
-	}
-	if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
-		if(!empty($_POST['starttime'])){
-			$starttime = daddslashes($_POST['starttime']);
-			$sql.=" AND A.addtime>='{$starttime} 00:00:00'";
-		}
-		if(!empty($_POST['endtime'])){
-			$endtime = daddslashes($_POST['endtime']);
-			$sql.=" AND A.addtime<='{$endtime} 23:59:59'";
-		}
-	}
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		if($_POST['column']=='name'){
-			$sql.=" AND A.`{$_POST['column']}` like '%{$_POST['value']}%'";
-		}else{
-			if(($_POST['column'] == 'money' || $_POST['column'] == 'realmoney' || $_POST['column'] == 'getmoney') && strpos($_POST['value'],'-')){
-				$money = explode('-', $_POST['value']);
-				$sql.=" AND A.`{$_POST['column']}`>='{$money[0]}' AND A.`{$_POST['column']}`<='{$money[1]}'";
-			}else{
-				$sql.=" AND A.`{$_POST['column']}`='{$_POST['value']}'";
-			}
-		}
-	}
+    $params = [];
+	$sql = buildAdminOrderWhere($params);
     // 统计数据
     $resultMoneyData = $DB->getRow("SELECT 
     SUM(money) AS totalMoney,
     SUM(CASE WHEN A.status = 1 THEN money ELSE 0 END) AS successMoney,
     SUM(CASE WHEN A.status = 0 THEN money ELSE 0 END) AS unpaidMoney,
     SUM(CASE WHEN A.status = 2 THEN refundmoney ELSE 0 END) AS refundMoney
-    FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql} order by trade_no desc");
+    FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql}", $params);
 
     $resultCount = $DB->getRow("SELECT 
     COUNT(*) AS totalCount,
     SUM(CASE WHEN A.status = 1 THEN 1 ELSE 0 END) AS successCount,
     SUM(CASE WHEN A.status = 0 THEN 1 ELSE 0 END) AS unpaidCount,
     SUM(CASE WHEN A.status = 2 THEN 1 ELSE 0 END) AS refundCount
-    FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql} order by trade_no desc");
+    FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql}", $params);
 
     // 获取平台总收入利润
-    $platformProfit = $DB->getColumn("SELECT SUM(A.profitmoney) FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql} AND status = 1 order by trade_no desc");
+    $platformProfit = $DB->getColumn("SELECT SUM(A.profitmoney) FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql} AND A.status = 1", $params);
 
 	$result = [
         'totalMoney' => number_format($resultMoneyData['totalMoney'], 2, '.', '') ?? 0.00,
@@ -157,18 +147,12 @@ case 'statistics':
 break;
 
 case 'riskList':
-	$sql=" 1=1";
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
-	}
-	if(isset($_POST['type']) && $_POST['type']>-1) {
-		$type = intval($_POST['type']);
-		$sql.=" AND `type`={$type}";
-	}
+	$params = [];
+	$sql = buildAdminRiskWhere($params);
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_risk WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_risk WHERE{$sql} order by id desc limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_risk WHERE {$sql}", $params);
+	$list = $DB->getAll("SELECT * FROM pre_risk WHERE {$sql} order by id desc limit {$offset},{$limit}", $params);
 
 	exit(json_encode(['total'=>$total, 'rows'=>$list]));
 break;
@@ -177,12 +161,12 @@ case 'setStatus': //改变订单状态
 	$trade_no=trim($_GET['trade_no']);
 	$status=is_numeric($_GET['status'])?intval($_GET['status']):exit('{"code":200}');
 	if($status==5){
-		if($DB->exec("DELETE FROM pre_order WHERE trade_no='$trade_no'"))
+		if($DB->exec("DELETE FROM pre_order WHERE trade_no=:trade_no", [':trade_no'=>$trade_no]))
 			exit('{"code":200}');
 		else
 			exit('{"code":400,"msg":"删除订单失败！['.$DB->error().']"}');
 	}else{
-		if($DB->exec("update pre_order set status='$status' where trade_no='$trade_no'")!==false)
+		if($DB->exec("update pre_order set status=:status where trade_no=:trade_no", [':status'=>$status, ':trade_no'=>$trade_no])!==false)
 			exit('{"code":200}');
 		else
 			exit('{"code":400,"msg":"修改订单失败！['.$DB->error().']"}');
@@ -190,7 +174,7 @@ case 'setStatus': //改变订单状态
 break;
 case 'order': //订单详情
 	$trade_no=trim($_GET['trade_no']);
-	$row=$DB->getRow("select A.*,B.showname typename,C.name channelname from pre_order A,pre_type B,pre_channel C where trade_no='$trade_no' and A.type=B.id and A.channel=C.id limit 1");
+	$row=$DB->getRow("select A.*,B.showname typename,C.name channelname from pre_order A,pre_type B,pre_channel C where trade_no=:trade_no and A.type=B.id and A.channel=C.id limit 1", [':trade_no'=>$trade_no]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前订单不存在或未成功选择支付通道！"}');
 	$row['subchannelname'] = $row['subchannel'] > 0 ? $DB->findColumn('subchannel', 'name', ['id'=>$row['subchannel']]) : '';
@@ -210,14 +194,14 @@ case 'operation': //批量操作订单
 	$checkbox=$_POST['checkbox'];
 	$i=0;
 	foreach($checkbox as $trade_no){
-		if($status==4)$DB->exec("DELETE FROM pre_order WHERE trade_no='$trade_no'");
+		if($status==4)$DB->exec("DELETE FROM pre_order WHERE trade_no=:trade_no", [':trade_no'=>$trade_no]);
 		elseif($status==3){
 			\lib\Order::unfreeze($trade_no);
 		}
 		elseif($status==2){
 			\lib\Order::freeze($trade_no);
 		}
-		else $DB->exec("update pre_order set status='$status' where trade_no='$trade_no' limit 1");
+		else $DB->exec("update pre_order set status=:status where trade_no=:trade_no limit 1", [':status'=>$status, ':trade_no'=>$trade_no]);
 		$i++;
 	}
 	exit('{"code":0,"msg":"成功改变'.$i.'条订单状态"}');
@@ -246,7 +230,7 @@ case 'apirefund': //API退款操作
 	$paypwd=trim($_POST['paypwd']);
 	$money = trim($_POST['money']);
 	if(!is_numeric($money) || !preg_match('/^[0-9.]+$/', $money))exit('{"code":-1,"msg":"金额输入错误"}');
-	if($paypwd!=$conf['admin_paypwd'])
+	if(!verifyConfigSecret($paypwd, $conf['admin_paypwd'], 'admin_paypwd'))
 		exit('{"code":-1,"msg":"支付密码输入错误！"}');
 	
 	$refund_no = date("YmdHis").rand(11111,99999);

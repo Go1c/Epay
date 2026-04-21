@@ -1,6 +1,11 @@
 <?php
 error_reporting(0);
 define('DB_VERSION', '2053');
+$allowInstaller = getenv('ALLOW_INSTALLER');
+
+if($allowInstaller !== '1'){
+	exit('升级程序默认已禁用。如需升级，请临时设置环境变量 ALLOW_INSTALLER=1 后再访问。');
+}
 require '../config.php';
 
 @header('Content-Type: text/html; charset=UTF-8');

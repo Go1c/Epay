@@ -34,9 +34,9 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
     }
     $password = $plain;
   }
-  if($username == $conf['admin_user'] && $password == $conf['admin_pwd']){
+  if($username === $conf['admin_user'] && verifyConfigSecret($password, $conf['admin_pwd'], 'admin_pwd')){
     $DB->insert('log', ['uid'=>0, 'type'=>'登录后台', 'date'=>'NOW()', 'ip'=>$clientip]);
-		$session=md5($username.$password.$password_hash);
+		$session=md5($username.$conf['admin_pwd'].$password_hash);
 		$expiretime=time() + 2592000;
 		$token=authcode("{$username}\t{$session}\t{$expiretime}", 'ENCODE', SYS_KEY);
 		setcookie("admin_token", $token, $expiretime, null, null, null, true);

@@ -14,6 +14,28 @@ if (parameter_str !== undefined) {
     window.$_GET = [];
 }
 
+function escapeHtml(value){
+	var str = value == null ? '' : String(value);
+	return str
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+function escapeJsString(value){
+	var str = value == null ? '' : String(value);
+	return str
+		.replace(/\\/g, '\\\\')
+		.replace(/'/g, "\\'")
+		.replace(/"/g, '\\"')
+		.replace(/\r/g, '\\r')
+		.replace(/\n/g, '\\n')
+		.replace(/</g, '\\x3C')
+		.replace(/>/g, '\\x3E');
+}
+
 function searchSubmit(){
 	$('#listTable').bootstrapTable('refresh');
 	return false;
