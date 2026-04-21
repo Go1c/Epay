@@ -139,35 +139,36 @@ $(document).ready(function(){
 				field: 'trade_no',
 				title: '系统订单号<br/>商户订单号',
 				formatter: function(value, row, index) {
-					return '<a href="javascript:showOrder(\''+value+'\')" title="点击查看详情">'+value+'</a></b><br/>'+row.out_trade_no;
+					return '<a href="javascript:showOrder(\''+escapeJsString(value)+'\')" title="点击查看详情">'+escapeHtml(value)+'</a></b><br/>'+escapeHtml(row.out_trade_no);
 				}
 			},
 			{
 				field: 'uid',
 				title: '商户号<br/>网站域名',
 				formatter: function(value, row, index) {
-					return '<a href="./ulist.php?my=search&column=uid&value='+value+'" target="_blank">'+value+'</a><br/><a onclick="openlink(\'http://'+row.domain+'\')">'+row.domain+'</a>';
+					var domain = row.domain ? String(row.domain) : '';
+					return '<a href="./ulist.php?my=search&column=uid&value='+encodeURIComponent(value)+'" target="_blank">'+escapeHtml(value)+'</a><br/><a href="javascript:void(0)" onclick="openlink(\'http://'+escapeJsString(domain)+'\')">'+escapeHtml(domain)+'</a>';
 				}
 			},
 			{
 				field: 'name',
 				title: '商品名称<br/>订单金额',
 				formatter: function(value, row, index) {
-					return value+'<br/>¥<b>'+row.money+'</b>';
+					return escapeHtml(value)+'<br/>¥<b>'+escapeHtml(row.money)+'</b>';
 				}
 			},
 			{
 				field: 'realmoney',
 				title: '实际支付<br/>商户分成',
 				formatter: function(value, row, index) {
-					return value!=null?'¥<b>'+value+'</b><br/>¥<b>'+row.getmoney+'</b>':'';
+					return value!=null?'¥<b>'+escapeHtml(value)+'</b><br/>¥<b>'+escapeHtml(row.getmoney)+'</b>':'';
 				}
 			},
 			{
 				field: 'type',
 				title: '支付方式(通道ID)<br/>支付插件',
 				formatter: function(value, row, index) {
-					return row.typename ? '<img src="/assets/icon/'+row.typename+'.ico" class="type-logo" onerror="this.style.display=\'none\'">'+row.typeshowname+'(<a href="./pay_channel.php?kw='+row.channel+'" target="_blank" title="'+row.channelname+'">'+row.channel+'</a>)<br/>'+row.plugin : '';
+					return row.typename ? '<img src="/assets/icon/'+encodeURIComponent(row.typename)+'.ico" class="type-logo" onerror="this.style.display=\'none\'">'+escapeHtml(row.typeshowname)+'(<a href="./pay_channel.php?kw='+encodeURIComponent(row.channel)+'" target="_blank" title="'+escapeHtml(row.channelname)+'">'+escapeHtml(row.channel)+'</a>)<br/>'+escapeHtml(row.plugin) : '';
 				}
 			},
 			{
@@ -178,7 +179,7 @@ $(document).ready(function(){
 				},
 				title: '支付IP<br/>支付账号',
 				formatter: function(value, row, index) {
-					return '<a href="https://m.ip138.com/iplookup.asp?ip='+value+'" target="_blank" rel="noreferrer">'+value+'</a>&nbsp;<a href="javascript:addBlackList(1,\''+row.ip+'\')" class="btn btn-xs btn-default"><i class="fa fa-stop-circle"></i></a><br/>'+(row.buyer?row.buyer+'&nbsp;<a href="javascript:addBlackList(0,\''+row.buyer+'\')" class="btn btn-xs btn-default"><i class="fa fa-stop-circle"></i></a>':'&nbsp;');
+					return '<a href="https://m.ip138.com/iplookup.asp?ip='+encodeURIComponent(value)+'" target="_blank" rel="noreferrer">'+escapeHtml(value)+'</a>&nbsp;<a href="javascript:addBlackList(1,\''+escapeJsString(row.ip)+'\')" class="btn btn-xs btn-default"><i class="fa fa-stop-circle"></i></a><br/>'+(row.buyer?escapeHtml(row.buyer)+'&nbsp;<a href="javascript:addBlackList(0,\''+escapeJsString(row.buyer)+'\')" class="btn btn-xs btn-default"><i class="fa fa-stop-circle"></i></a>':'&nbsp;');
 				}
 			},
 			{
@@ -282,8 +283,8 @@ $(document).ready(function(){
 	})
 })
 
-function openlink(full_link){ 
-	window.open('javascript:window.name;', '<script>location.replace("'+full_link+'")<\/script>');
+function openlink(full_link){
+	window.open(full_link, '_blank', 'noopener');
 }
 
 function statistics(){
@@ -367,38 +368,38 @@ function showOrder(trade_no) {
 				var data = data.data;
 				var item = '<table class="table table-condensed table-hover" id="orderItem">';
 				item += '<tr><td colspan="6" style="text-align:center" class="orderTitle"><b>订单信息</b></td></tr>';
-				item += '<tr class="orderTitle"><td class="info" class="orderTitle">系统订单号</td><td colspan="5" class="orderContent">'+data.trade_no+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">商户订单号</td><td colspan="5" class="orderContent">'+data.out_trade_no+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">接口订单号</td><td colspan="5" class="orderContent">'+data.api_trade_no+'</td></tr>';
-				if(data.bill_mch_trade_no){
-					item += '<tr><td class="info" class="orderTitle">渠道交易单号</td><td colspan="5" class="orderContent">'+data.bill_mch_trade_no+'</td></tr>';
-				}
-				if(data.bill_trade_no){
-					item += '<tr><td class="info" class="orderTitle">用户交易单号</td><td colspan="5" class="orderContent">'+data.bill_trade_no+'</td></tr>';
-				}
-				item += '<tr><td class="info">商户ID</td class="orderTitle"><td colspan="5" class="orderContent"><a href="./ulist.php?my=search&column=uid&value='+data.uid+'" target="_blank">'+data.uid+'</a></td>';
-				item += '<tr><td class="info" class="orderTitle">支付方式</td><td colspan="5" class="orderContent">'+data.typename+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">支付通道</td><td colspan="5" class="orderContent"><a href="./pay_channel.php?id='+data.channel+'" target="_blank">'+data.channelname+'</a></td></tr>';
-				if(data.subchannel > 0){
-					item += '<tr><td class="info" class="orderTitle">自定义子通道</td><td colspan="5" class="orderContent">'+data.subchannelname+'</td></tr>';
-				}
-				item += '<tr><td class="info" class="orderTitle">商品名称</td><td colspan="5" class="orderContent">'+data.name+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">订单金额</td><td colspan="5" class="orderContent">'+data.money+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">实际支付金额</td><td colspan="5" class="orderContent">'+data.realmoney+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">商户分成金额</td><td colspan="5" class="orderContent">'+data.getmoney+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">手续费利润</td><td colspan="5" class="orderContent">'+data.profitmoney+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">创建时间</td><td colspan="5" class="orderContent">'+data.addtime+'</td></tr>';
-				item += '<tr><td class="info" class="orderTitle">完成时间</td><td colspan="5" class="orderContent">'+data.endtime+'</td></tr>';
-				if(data.status==2){
-					item += '<tr><td class="info" class="orderTitle">退款时间</td><td colspan="5" class="orderContent">'+data.refundtime+'</td></tr>';
-				}
-				item += '<tr><td class="info" class="orderTitle" title="只有在官方通道支付完成后才能显示">支付账号</td><td colspan="5" class="orderContent">'+data.buyer+(data.buyer!=null?'&nbsp;&nbsp;<a href="javascript:addBlackList(0,\''+data.buyer+'\')" class="btn btn-xs btn-default">拉黑</a>':'')+'</td></tr>';
-				if(data.mobile){
-					item += '<tr><td class="info" class="orderTitle">手机号码</td><td colspan="5" class="orderContent">'+data.mobile+'&nbsp;&nbsp;<a href="javascript:addBlackList(0,\''+data.mobile+'\')" class="btn btn-xs btn-default">拉黑</a></td></tr>';
-				}
-				item += '<tr><td class="info" class="orderTitle">网站域名</td><td colspan="5" class="orderContent"><a href="http://'+data.domain+'" target="_blank" rel="noreferrer">'+data.domain+'</a></td></tr>';
-				item += '<tr><td class="info" class="orderTitle">支付IP</td><td colspan="5" class="orderContent"><a href="https://m.ip138.com/iplookup.asp?ip='+data.ip+'" target="_blank" rel="noreferrer">'+data.ip+'</a>&nbsp;&nbsp;<a href="javascript:addBlackList(1,\''+data.ip+'\')" class="btn btn-xs btn-default">拉黑</a></td></tr>';
-				item += '<tr><td class="info" class="orderTitle">扩展参数</td><td colspan="5" class="orderContent">'+data.param+'</td></tr>';
+					item += '<tr class="orderTitle"><td class="info" class="orderTitle">系统订单号</td><td colspan="5" class="orderContent">'+escapeHtml(data.trade_no)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">商户订单号</td><td colspan="5" class="orderContent">'+escapeHtml(data.out_trade_no)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">接口订单号</td><td colspan="5" class="orderContent">'+escapeHtml(data.api_trade_no)+'</td></tr>';
+					if(data.bill_mch_trade_no){
+						item += '<tr><td class="info" class="orderTitle">渠道交易单号</td><td colspan="5" class="orderContent">'+escapeHtml(data.bill_mch_trade_no)+'</td></tr>';
+					}
+					if(data.bill_trade_no){
+						item += '<tr><td class="info" class="orderTitle">用户交易单号</td><td colspan="5" class="orderContent">'+escapeHtml(data.bill_trade_no)+'</td></tr>';
+					}
+					item += '<tr><td class="info">商户ID</td class="orderTitle"><td colspan="5" class="orderContent"><a href="./ulist.php?my=search&column=uid&value='+encodeURIComponent(data.uid)+'" target="_blank">'+escapeHtml(data.uid)+'</a></td>';
+					item += '<tr><td class="info" class="orderTitle">支付方式</td><td colspan="5" class="orderContent">'+escapeHtml(data.typename)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">支付通道</td><td colspan="5" class="orderContent"><a href="./pay_channel.php?id='+encodeURIComponent(data.channel)+'" target="_blank">'+escapeHtml(data.channelname)+'</a></td></tr>';
+					if(data.subchannel > 0){
+						item += '<tr><td class="info" class="orderTitle">自定义子通道</td><td colspan="5" class="orderContent">'+escapeHtml(data.subchannelname)+'</td></tr>';
+					}
+					item += '<tr><td class="info" class="orderTitle">商品名称</td><td colspan="5" class="orderContent">'+escapeHtml(data.name)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">订单金额</td><td colspan="5" class="orderContent">'+escapeHtml(data.money)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">实际支付金额</td><td colspan="5" class="orderContent">'+escapeHtml(data.realmoney)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">商户分成金额</td><td colspan="5" class="orderContent">'+escapeHtml(data.getmoney)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">手续费利润</td><td colspan="5" class="orderContent">'+escapeHtml(data.profitmoney)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">创建时间</td><td colspan="5" class="orderContent">'+escapeHtml(data.addtime)+'</td></tr>';
+					item += '<tr><td class="info" class="orderTitle">完成时间</td><td colspan="5" class="orderContent">'+escapeHtml(data.endtime)+'</td></tr>';
+					if(data.status==2){
+						item += '<tr><td class="info" class="orderTitle">退款时间</td><td colspan="5" class="orderContent">'+escapeHtml(data.refundtime)+'</td></tr>';
+					}
+					item += '<tr><td class="info" class="orderTitle" title="只有在官方通道支付完成后才能显示">支付账号</td><td colspan="5" class="orderContent">'+escapeHtml(data.buyer)+(data.buyer!=null?'&nbsp;&nbsp;<a href="javascript:addBlackList(0,\''+escapeJsString(data.buyer)+'\')" class="btn btn-xs btn-default">拉黑</a>':'')+'</td></tr>';
+					if(data.mobile){
+						item += '<tr><td class="info" class="orderTitle">手机号码</td><td colspan="5" class="orderContent">'+escapeHtml(data.mobile)+'&nbsp;&nbsp;<a href="javascript:addBlackList(0,\''+escapeJsString(data.mobile)+'\')" class="btn btn-xs btn-default">拉黑</a></td></tr>';
+					}
+					item += '<tr><td class="info" class="orderTitle">网站域名</td><td colspan="5" class="orderContent"><a href="http://'+encodeURIComponent(data.domain)+'" target="_blank" rel="noreferrer">'+escapeHtml(data.domain)+'</a></td></tr>';
+					item += '<tr><td class="info" class="orderTitle">支付IP</td><td colspan="5" class="orderContent"><a href="https://m.ip138.com/iplookup.asp?ip='+encodeURIComponent(data.ip)+'" target="_blank" rel="noreferrer">'+escapeHtml(data.ip)+'</a>&nbsp;&nbsp;<a href="javascript:addBlackList(1,\''+escapeJsString(data.ip)+'\')" class="btn btn-xs btn-default">拉黑</a></td></tr>';
+					item += '<tr><td class="info" class="orderTitle">扩展参数</td><td colspan="5" class="orderContent">'+escapeHtml(data.param)+'</td></tr>';
 				item += '<tr><td class="info" class="orderTitle">订单状态</td><td colspan="5" class="orderContent">'+status[data.status]+'</td></tr>';
 				if(data.status>0){
 					item += '<tr><td class="info" class="orderTitle">通知状态</td><td colspan="5" class="orderContent">'+(data.notify==0?'<span class="label label-success">通知成功</span>':'<span class="label label-danger">通知失败</span>（已通知'+data.notify+'次）')+'</td></tr>';

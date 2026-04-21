@@ -118,14 +118,14 @@ $(document).ready(function(){
 				field: 'biz_no',
 				title: '交易号<br/>第三方交易号',
 				formatter: function(value, row, index) {
-					return '<b>'+value+'</b><br/>'+row.pay_order_no;
+					return '<b>'+escapeHtml(value)+'</b><br/>'+escapeHtml(row.pay_order_no);
 				}
 			},
 			{
 				field: 'uid',
 				title: '商户号',
 				formatter: function(value, row, index) {
-					return value>0?'<a href="./ulist.php?column=uid&value='+value+'" target="_blank">'+value+'</a>':'管理员';
+					return value>0?'<a href="./ulist.php?column=uid&value='+encodeURIComponent(value)+'" target="_blank">'+escapeHtml(value)+'</a>':'管理员';
 				}
 			},
 			{
@@ -142,28 +142,28 @@ $(document).ready(function(){
 					}else if(value == 'bank'){
 						typename='<img src="/assets/icon/bank.ico" width="16" onerror="this.style.display=\'none\'">银行卡';
 					}
-					return typename+(row.channel>0 ? '(<a href="./pay_channel.php?kw='+row.channel+'" target="_blank">'+row.channel+'</a>)'+'<br/>'+(row.desc?'<font color="#bf7fef">'+row.desc+'</font>':'')+'' : '');
+					return typename+(row.channel>0 ? '(<a href="./pay_channel.php?kw='+encodeURIComponent(row.channel)+'" target="_blank">'+escapeHtml(row.channel)+'</a>)'+'<br/>'+(row.desc?'<font color="#bf7fef">'+escapeHtml(row.desc)+'</font>':'')+'' : '');
 				}
 			},
 			{
 				field: 'account',
 				title: '付款账号<br/>姓名',
 				formatter: function(value, row, index) {
-					return ''+value+'<br/>'+row.username+'';
+					return escapeHtml(value)+'<br/>'+escapeHtml(row.username);
 				}
 			},
 			{
 				field: 'money',
 				title: '付款金额<br/>花费金额',
 				formatter: function(value, row, index) {
-					return '¥<b>'+value+'</b><br/>¥<b>'+row.costmoney+'</b>';
+					return '¥<b>'+escapeHtml(value)+'</b><br/>¥<b>'+escapeHtml(row.costmoney)+'</b>';
 				}
 			},
 			{
 				field: 'paytime',
 				title: '提交时间<br/>付款时间',
 				formatter: function(value, row, index) {
-					return (row.addtime ? row.addtime : value)+'<br/>'+value;
+					return escapeHtml(row.addtime ? row.addtime : value)+'<br/>'+escapeHtml(value);
 				}
 			},
 			{
@@ -173,13 +173,13 @@ $(document).ready(function(){
 					if(value == '1'){
 						return '<font color=green>转账成功</font>';
 					}else if(value == '2'){
-						return '<a href="javascript:showResult(\''+row.biz_no+'\')" title="点此查看失败原因"><font color=red>转账失败</font></a>';
+						return '<a href="javascript:showResult(\''+escapeJsString(row.biz_no)+'\')" title="点此查看失败原因"><font color=red>转账失败</font></a>';
 					}else if(value == '3'){
 						return '<font color=blue>待处理</font>';
 					}else if(value == '4'){
-						return '<font color=#26a7e8>待领取</font><br/><a href="javascript:showQrcode(\''+row.jumpurl+'\',\''+row.type+'\')" class="btn btn-xs btn-success"><i class="fa fa-qrcode"></i> 红包码</a>';
+						return '<font color=#26a7e8>待领取</font><br/><a href="javascript:showQrcode(\''+escapeJsString(row.jumpurl)+'\',\''+escapeJsString(row.type)+'\')" class="btn btn-xs btn-success"><i class="fa fa-qrcode"></i> 红包码</a>';
 					}else{
-						return '<a href="javascript:queryStatus(\''+row.biz_no+'\')" title="点此查询转账状态"><font color=orange>正在处理</font></a>' + (row.jumpurl ? '<br/><a href="javascript:showQrcode(\''+row.jumpurl+'\',\''+row.type+'\')" class="btn btn-xs btn-success"><i class="fa fa-qrcode"></i> 确认收款</a>' : '');
+						return '<a href="javascript:queryStatus(\''+escapeJsString(row.biz_no)+'\')" title="点此查询转账状态"><font color=orange>正在处理</font></a>' + (row.jumpurl ? '<br/><a href="javascript:showQrcode(\''+escapeJsString(row.jumpurl)+'\',\''+escapeJsString(row.type)+'\')" class="btn btn-xs btn-success"><i class="fa fa-qrcode"></i> 确认收款</a>' : '');
 					}
 				}
 			},
@@ -189,27 +189,27 @@ $(document).ready(function(){
 				formatter: function(value, row, index) {
 					let html = '';
 					if(row.status == '1'){
-						html += '<a href="javascript:setStatusFail(\''+row.biz_no+'\')" class="btn btn-warning btn-xs">改为失败</a> <a href="javascript:delItem(\''+row.biz_no+'\')" class="btn btn-danger btn-xs">删除</a><br/>';
+						html += '<a href="javascript:setStatusFail(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-warning btn-xs">改为失败</a> <a href="javascript:delItem(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-danger btn-xs">删除</a><br/>';
 						if(row.channel > 0){
-							html += '<a href="javascript:getProof(\''+row.biz_no+'\')" class="btn btn-default btn-xs">获取凭证</a> ';
+							html += '<a href="javascript:getProof(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-default btn-xs">获取凭证</a> ';
 						}
-						html += '<a href="transfer_add.php?app='+row.type+'&copy='+row.biz_no+'" class="btn btn-default btn-xs">复制</a>';
+						html += '<a href="transfer_add.php?app='+encodeURIComponent(row.type)+'&copy='+encodeURIComponent(row.biz_no)+'" class="btn btn-default btn-xs">复制</a>';
 					}else if(row.status == '2'){
-						html += '<a href="javascript:setStatusSuccess(\''+row.biz_no+'\')" class="btn btn-success btn-xs">改为成功</a> <a href="javascript:delItem(\''+row.biz_no+'\')" class="btn btn-danger btn-xs">删除</a><br/><a href="transfer_add.php?app='+row.type+'&copy='+row.biz_no+'" class="btn btn-default btn-xs">复制</a>';
+						html += '<a href="javascript:setStatusSuccess(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-success btn-xs">改为成功</a> <a href="javascript:delItem(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-danger btn-xs">删除</a><br/><a href="transfer_add.php?app='+encodeURIComponent(row.type)+'&copy='+encodeURIComponent(row.biz_no)+'" class="btn btn-default btn-xs">复制</a>';
 					}else if(row.status == '3'){
-						html += '<a href="javascript:setStatusSuccess(\''+row.biz_no+'\')" class="btn btn-success btn-xs">成功</a> <a href="javascript:setStatusFail(\''+row.biz_no+'\')" class="btn btn-warning btn-xs">失败</a><br/>';
-						if(row.uid > 0) html += '<a href="javascript:refund(\''+row.biz_no+'\')" class="btn btn-warning btn-xs">退回</a>';
-						else html += '<a href="javascript:delItem(\''+row.biz_no+'\')" class="btn btn-danger btn-xs">删除</a>';
-						html += ' <a href="transfer_add.php?app='+row.type+'&copy='+row.biz_no+'" class="btn btn-default btn-xs">复制</a>';
+						html += '<a href="javascript:setStatusSuccess(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-success btn-xs">成功</a> <a href="javascript:setStatusFail(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-warning btn-xs">失败</a><br/>';
+						if(row.uid > 0) html += '<a href="javascript:refund(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-warning btn-xs">退回</a>';
+						else html += '<a href="javascript:delItem(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-danger btn-xs">删除</a>';
+						html += ' <a href="transfer_add.php?app='+encodeURIComponent(row.type)+'&copy='+encodeURIComponent(row.biz_no)+'" class="btn btn-default btn-xs">复制</a>';
 					}else if(row.status == '4'){
-						if(row.uid > 0) html += '<a href="javascript:refund(\''+row.biz_no+'\')" class="btn btn-warning btn-xs">退回</a>';
-						else html += '<a href="javascript:delItem(\''+row.biz_no+'\')" class="btn btn-danger btn-xs">删除</a>';
+						if(row.uid > 0) html += '<a href="javascript:refund(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-warning btn-xs">退回</a>';
+						else html += '<a href="javascript:delItem(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-danger btn-xs">删除</a>';
 					}else{
-						html += '<a href="javascript:queryStatus(\''+row.biz_no+'\')" class="btn btn-info btn-xs">查询状态</a> ';
-						if(row.jumpurl) html += '<a href="javascript:cancel(\''+row.biz_no+'\')" class="btn btn-warning btn-xs">撤销</a>';
-						else if(row.uid > 0) html += '<a href="javascript:refund(\''+row.biz_no+'\')" class="btn btn-warning btn-xs">退回</a>';
-						else html += '<a href="javascript:delItem(\''+row.biz_no+'\')" class="btn btn-danger btn-xs">删除</a>';
-						html += '<br/><a href="transfer_add.php?app='+row.type+'&copy='+row.biz_no+'" class="btn btn-default btn-xs">复制</a>';
+						html += '<a href="javascript:queryStatus(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-info btn-xs">查询状态</a> ';
+						if(row.jumpurl) html += '<a href="javascript:cancel(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-warning btn-xs">撤销</a>';
+						else if(row.uid > 0) html += '<a href="javascript:refund(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-warning btn-xs">退回</a>';
+						else html += '<a href="javascript:delItem(\''+escapeJsString(row.biz_no)+'\')" class="btn btn-danger btn-xs">删除</a>';
+						html += '<br/><a href="transfer_add.php?app='+encodeURIComponent(row.type)+'&copy='+encodeURIComponent(row.biz_no)+'" class="btn btn-default btn-xs">复制</a>';
 					}
 					return html;
 				}

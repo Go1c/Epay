@@ -179,14 +179,14 @@ $(document).ready(function(){
 				formatter: function(value, row, index) {
 					let groupname = row.groupname;
 					if(groupname!=null && groupname.length > 14) groupname = groupname.substring(0,14);
-					return '<b>'+value+'</b><br/><span onclick="editGroup('+value+','+row.gid+',\''+row.endtime+'\')" style="color:blue" title="到期时间：'+(row.endtime==null?'永久':row.endtime)+'">'+groupname+'</span>';
+					return '<b>'+escapeHtml(value)+'</b><br/><span onclick="editGroup('+Number(value)+','+Number(row.gid)+',\''+escapeJsString(row.endtime)+'\')" style="color:blue" title="到期时间：'+escapeHtml(row.endtime==null?'永久':row.endtime)+'">'+escapeHtml(groupname)+'</span>';
 				}
 			},
 			{
 				field: 'money',
 				title: '余额',
 				formatter: function(value, row, index) {
-					return '<b><a href="javascript:showRecharge('+row.uid+')">'+value+'</a></b>';
+					return '<b><a href="javascript:showRecharge('+Number(row.uid)+')">'+escapeHtml(value)+'</a></b>';
 				}
 			},
 			{
@@ -194,21 +194,22 @@ $(document).ready(function(){
 				title: '结算账号/姓名',
 				formatter: function(value, row, index) {
 					var type_arr = {1:'alipay',2:'wxpay',3:'qqpay',4:'bank'};
-					return row.account ? '<span onclick="inputInfo('+row.uid+')" title="点击修改结算账号">'+(value==2?'<font color="green">WX:</font>':'')+(value==3?'<font color="green">QQ:</font>':'')+row.account+'<br/>'+row.username+'</span> <a href="./transfer_add.php?app='+type_arr[value]+'&account='+row.account+'&username='+row.username+'" target="_blank"><i class="fa fa-send-o fa-fw"></i></a>' : '<span onclick="inputInfo('+row.uid+')" title="点击修改结算账号">未设置</span>';
+					var transferUrl = './transfer_add.php?app='+encodeURIComponent(type_arr[value])+'&account='+encodeURIComponent(row.account || '')+'&username='+encodeURIComponent(row.username || '');
+					return row.account ? '<span onclick="inputInfo('+Number(row.uid)+')" title="点击修改结算账号">'+(value==2?'<font color="green">WX:</font>':'')+(value==3?'<font color="green">QQ:</font>':'')+escapeHtml(row.account)+'<br/>'+escapeHtml(row.username)+'</span> <a href="'+transferUrl+'" target="_blank"><i class="fa fa-send-o fa-fw"></i></a>' : '<span onclick="inputInfo('+Number(row.uid)+')" title="点击修改结算账号">未设置</span>';
 				}
 			},
 			{
 				field: 'qq',
 				title: '联系方式',
 				formatter: function(value, row, index) {
-					return (value ? 'QQ:'+(isMobile() ? '<a href="mqqwpa://im/chat?chat_type=wpa&version=1&src_type=web&web_src=oicqzone.com&uin='+value+'">'+value+'</a>' : '<a href="tencent://message/?uin='+value+'&amp;Site=qq&amp;Menu=yes">'+value+'</a>') : '')+'<br/>'+(row.phone?row.phone:row.email);
+					return (value ? 'QQ:'+(isMobile() ? '<a href="mqqwpa://im/chat?chat_type=wpa&version=1&src_type=web&web_src=oicqzone.com&uin='+encodeURIComponent(value)+'">'+escapeHtml(value)+'</a>' : '<a href="tencent://message/?uin='+encodeURIComponent(value)+'&amp;Site=qq&amp;Menu=yes">'+escapeHtml(value)+'</a>') : '')+'<br/>'+escapeHtml(row.phone?row.phone:row.email);
 				}
 			},
 			{
 				field: 'url',
 				title: '注册时间/域名',
 				formatter: function(value, row, index) {
-					return row.addtime+'<br/>'+(value?value:'')+(pay_domain=='true'?' [<a href="./domain.php?uid='+row.uid+'" target="_blank" >域名</a>]':'');
+					return escapeHtml(row.addtime)+'<br/>'+(value?escapeHtml(value):'')+(pay_domain=='true'?' [<a href="./domain.php?uid='+encodeURIComponent(row.uid)+'" target="_blank" >域名</a>]':'');
 				}
 			},
 			{
