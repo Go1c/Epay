@@ -66,6 +66,31 @@ exit();
 $CACHE=new \lib\Cache();
 $conf=$CACHE->pre_fetch();
 define('SYS_KEY', $conf['syskey']);
+
+if(function_exists('config_env')){
+	// Allow platform env vars to override runtime URLs without storing them in git.
+	$app_url = config_env(['APP_URL', 'SITE_URL'], '');
+	if($app_url){
+		$siteurl = rtrim($app_url, '/').'/';
+	}
+	$local_url = config_env(['LOCAL_URL'], '');
+	if($local_url){
+		$conf['localurl'] = rtrim($local_url, '/').'/';
+	}
+	$localurl_wxpay = config_env(['LOCALURL_WXPAY'], '');
+	if($localurl_wxpay){
+		$conf['localurl_wxpay'] = rtrim($localurl_wxpay, '/').'/';
+	}
+	$wxpay_qrcode_url = config_env(['WXPAY_QRCODE_URL'], '');
+	if($wxpay_qrcode_url){
+		$conf['wxpay_qrcode_url'] = rtrim($wxpay_qrcode_url, '/').'/';
+	}
+	$alipay_qrcode_url = config_env(['ALIPAY_QRCODE_URL'], '');
+	if($alipay_qrcode_url){
+		$conf['alipay_qrcode_url'] = rtrim($alipay_qrcode_url, '/').'/';
+	}
+}
+
 if(!$conf['localurl'])$conf['localurl'] = $siteurl;
 $password_hash='!@#%!s!0';
 
