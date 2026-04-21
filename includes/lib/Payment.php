@@ -5,6 +5,52 @@ use Exception;
 
 class Payment {
 
+    static private function normalizePayUrl($url){
+        if(!is_string($url) || $url === ''){
+            return $url;
+        }
+        if(strpos($url, '/pay.php?') === 0 || strpos($url, 'pay.php?') === 0 || strpos($url, '://') !== false && strpos($url, '/pay.php?') !== false){
+            return $url;
+        }
+
+        $parts = parse_url($url);
+        if($parts === false || empty($parts['path'])){
+            return $url;
+        }
+
+        $path = $parts['path'];
+        if(strpos($path, '/pay/') === 0){
+            $base = '';
+            if(isset($parts['scheme']) && isset($parts['host'])){
+                $base = $parts['scheme'].'://';
+                if(isset($parts['user'])){
+                    $base .= $parts['user'];
+                    if(isset($parts['pass'])){
+                        $base .= ':'.$parts['pass'];
+                    }
+                    $base .= '@';
+                }
+                $base .= $parts['host'];
+                if(isset($parts['port'])){
+                    $base .= ':'.$parts['port'];
+                }
+            }
+            $url = $base.'/pay.php?s='.substr($path, 5);
+        }elseif(strpos($path, 'pay/') === 0){
+            $url = 'pay.php?s='.substr($path, 4);
+        }else{
+            return $url;
+        }
+
+        if(!empty($parts['query'])){
+            $url .= '&'.$parts['query'];
+        }
+        if(isset($parts['fragment'])){
+            $url .= '#'.$parts['fragment'];
+        }
+        return $url;
+    }
+
     //生成待签名字符串
     static private function getSignContent($data){
         ksort($data);
@@ -58,6 +104,7 @@ class Payment {
         if(!$type) return false;
         switch($type){
             case 'jump': //跳转
+                $result['url'] = self::normalizePayUrl($result['url']);
                 $html_text = '<script>window.location.replace(\''.$result['url'].'\');</script>';
                 if(isset($result['submit']) && $result['submit']){
                     submitTemplate($html_text);
@@ -100,7 +147,7 @@ class Payment {
             case 'scheme': //跳转urlscheme页面
                 if($result['page'] == 'wxpay_mini') $result['page'] = 'wxpay_h5';
                 include_once SYSTEM_ROOT.'txprotect.php';
-                $code_url = $result['url'];
+                $code_url = self::normalizePayUrl($result['url']);
                 if($conf['pageordername']==1)$order['name']=$ordername?$ordername:'onlinepay';
                 if($conf['wework_payopen'] == 1 && ($result['page'] == 'wxpay_wap' && strpos($_SERVER['HTTP_USER_AGENT'], 'MicroMessenger')===false || $result['page'] == 'wxpay_qrcode' && checkmobile())){
                     $code_url_wxkf = self::getWxkfPayUrl($code_url);
@@ -134,7 +181,7 @@ class Payment {
             switch($type){
                 case 'jump': //跳转URL
                     $json['pay_type'] = 'jump';
-                    $json['pay_info'] = $result['url'];
+                    $json['pay_info'] = self::normalizePayUrl($result['url']);
                     break;
                 case 'html': //显示html跳转
                     $json['pay_type'] = 'html';
@@ -152,11 +199,11 @@ class Payment {
                         }
                     }
                     $json['pay_type'] = 'qrcode';
-                    $json['pay_info'] = $result['url'];
+                    $json['pay_info'] = self::normalizePayUrl($result['url']);
                     break;
                 case 'scheme': //小程序H5跳转
                     $json['pay_type'] = 'urlscheme';
-                    $json['pay_info'] = $result['url'];
+                    $json['pay_info'] = self::normalizePayUrl($result['url']);
                     break;
                 case 'jsapi': //JSAPI支付
                     $json['pay_type'] = 'jsapi';
@@ -185,7 +232,7 @@ class Payment {
                     break;
                 default:
                     $json['pay_type'] = 'jump';
-                    $json['pay_info'] = $siteurl.'pay/submit/'.TRADE_NO.'/';
+                    $json['pay_info'] = self::normalizePayUrl($siteurl.'pay/submit/'.TRADE_NO.'/');
                     break;
             }
             if($json['code'] == 0){
@@ -199,7 +246,7 @@ class Payment {
             $json = ['code'=>1, 'trade_no'=>TRADE_NO];
             switch($type){
                 case 'jump': //跳转URL
-                    $json['payurl'] = $result['url'];
+                    $json['payurl'] = self::normalizePayUrl($result['url']);
                     break;
                 case 'html': //显示html跳转
                     $json['html'] = $result['data'];
@@ -215,10 +262,10 @@ class Payment {
                             $result['url'] = $conf['wxpay_qrcode_url'].substr($result['url'], strlen($siteurl));
                         }
                     }
-                    $json['qrcode'] = $result['url'];
+                    $json['qrcode'] = self::normalizePayUrl($result['url']);
                     break;
                 case 'scheme': //小程序H5跳转
-                    $json['urlscheme'] = $result['url'];
+                    $json['urlscheme'] = self::normalizePayUrl($result['url']);
                     break;
                 case 'error':
                     $json['code'] = -2;
@@ -226,7 +273,7 @@ class Payment {
                     self::check_error_msg($result['msg']);
                     break;
                 default:
-                    $json['payurl'] = $siteurl.'pay/submit/'.TRADE_NO.'/';
+                    $json['payurl'] = self::normalizePayUrl($siteurl.'pay/submit/'.TRADE_NO.'/');
                     break;
             }
             exit(json_encode($json));
