@@ -75,7 +75,21 @@ if(!defined('IN_PLUGIN'))exit();
 		    jsApiCall();
 		}
 	}
-    function loadmsg() {
+    function queryOrder(done) {
+        $.ajax({
+            type: "GET",
+            cache: false,
+            dataType: "json",
+            url: "/pay.php",
+            data: {s: "query/<?php echo TRADE_NO?>/", t: Date.now()},
+            complete: function () {
+                if (typeof done === 'function') done();
+            }
+        });
+    }
+    function loadmsg(retryTimes) {
+        retryTimes = retryTimes || 0;
+        queryOrder(function () {
         $.ajax({
             type: "GET",
             cache: false,
@@ -91,12 +105,17 @@ if(!defined('IN_PLUGIN'))exit();
                     }
                     window.location.href = targetUrl;
                 }else{
-                    setTimeout("loadmsg()", 2000);
+                    if(retryTimes < 2){
+                        setTimeout(function(){ loadmsg(retryTimes + 1); }, 800);
+                    }else{
+                        setTimeout(function(){ loadmsg(); }, 2000);
+                    }
                 }
             },
             error: function () {
-                setTimeout("loadmsg()", 2000);
+                setTimeout(function(){ loadmsg(); }, 2000);
             }
+        });
         });
     }
     window.onload = callpay();
